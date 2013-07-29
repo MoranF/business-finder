@@ -1,1 +1,6 @@
-/* CSS declarations go here */
+#target {
+    width: 345px;
+}
+#map-canvas {
+    width: 60%;
+}

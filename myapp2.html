@@ -6,113 +6,120 @@
           rel="stylesheet">
     <title>Places search box</title>
     <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=places"></script>
+    <script src="/myapp2.js"></script>
     <script>
+        var Businesses = new Meteor.Collection("Bu");
 
-        var infowindow;
-        var map;
-        var service;
-        var Businesses = new Meteor.Collection("Businesses");
-        function Business(){
-            this.name;
-            this.formatted_phone_number;
-            this.formatted_address;
-            this.website;
-        }
+        if (Meteor.isClient) {
+            function Business(){
+                this.name;
+                this.formatted_phone_number;
+                this.formatted_address;
+                this.website;
+            }
 
-        function initialize() {
-            map = new google.maps.Map(document.getElementById('map-canvas'), {
-                mapTypeId: google.maps.MapTypeId.ROADMAP
-            });
-            var defaultBounds = new google.maps.LatLngBounds(
-                    new google.maps.LatLng(-33.8902, 151.1759),
-                    new google.maps.LatLng(-33.8474, 151.2631));
-            map.fitBounds(defaultBounds);
+            var infowindow;
+            var map;
+            var service;
+            var businessesList = [];
 
-            var input = /** @type {HTMLInputElement} */(document.getElementById('target'));
-            var searchBox = new google.maps.places.SearchBox(input);
-            var typeInput = /** @type {HTMLInputElement} */(document.getElementById('businessType'));
+
+
+            function initialize() {
+                map = new google.maps.Map(document.getElementById('map-canvas'), {
+                    mapTypeId: google.maps.MapTypeId.ROADMAP
+                });
+                var defaultBounds = new google.maps.LatLngBounds(
+                        new google.maps.LatLng(-33.8902, 151.1759),
+                        new google.maps.LatLng(-33.8474, 151.2631)
+                );
+                map.fitBounds(defaultBounds);
+
+                var input = /** @type {HTMLInputElement} */(document.getElementById('target'));
+                var searchBox = new google.maps.places.SearchBox(input);
+                var typeInput = /** @type {HTMLInputElement} */(document.getElementById('businessType'));
 //            var typeSearchBox = new google.maps.types.SearchBox(typeInput);
-            var markers = [];
+                var markers = [];
 
-            google.maps.event.addListener(searchBox, 'places_changed', function() {
-                var places = searchBox.getPlaces();
+                google.maps.event.addListener(searchBox, 'places_changed', function() {
+                    var places = searchBox.getPlaces();
 
-                for (var i = 0, marker; marker = markers[i]; i++) {
-                    marker.setMap(null);
-                }
+                    for (var i = 0, marker; marker = markers[i]; i++) {
+                        marker.setMap(null);
+                    }
 
-                markers = [];
-                var bounds = new google.maps.LatLngBounds();
-                for (var i = 0, place; place = places[i]; i++) {
-                    var image = {
-                        url: place.icon,
-                        size: new google.maps.Size(71, 71),
-                        origin: new google.maps.Point(0, 0),
-                        anchor: new google.maps.Point(17, 34),
-                        scaledSize: new google.maps.Size(25, 25)
-                    };
+                    markers = [];
+                    var bounds = new google.maps.LatLngBounds();
+                    for (var i = 0, place; place = places[i]; i++) {
+                        var image = {
+                            url: place.icon,
+                            size: new google.maps.Size(71, 71),
+                            origin: new google.maps.Point(0, 0),
+                            anchor: new google.maps.Point(17, 34),
+                            scaledSize: new google.maps.Size(25, 25)
+                        };
 
-                    var marker = new google.maps.Marker({
-                        map: map,
-                        icon: image,
-                        title: place.name,
-                        position: place.geometry.location
-                    });
+                        var marker = new google.maps.Marker({
+                            map: map,
+                            icon: image,
+                            title: place.name,
+                            position: place.geometry.location
+                        });
+                        var typesDropDown = document.getElementById("types");
+                        var request = {
+                            location: place.geometry.location,
+                            radius: 100,
+                            types: [typesDropDown.options[typesDropDown.selectedIndex].text]
+                        };
 
-                    var request = {
-                        location: place.geometry.location,
-                        radius: 30,
-                        types: [typeInput.value]
-                    };
+                        infowindow = new google.maps.InfoWindow();
+                        service = new google.maps.places.PlacesService(map);
+                        service.radarSearch(request, callback);
 
-                    infowindow = new google.maps.InfoWindow();
-                    service = new google.maps.places.PlacesService(map);
-                    service.radarSearch(request, callback);
+                        markers.push(marker);
 
-                    markers.push(marker);
+                        bounds.extend(place.geometry.location);
 
-                    bounds.extend(place.geometry.location);
+                    }
 
-                }
+                    map.fitBounds(bounds);
+                });
 
-                map.fitBounds(bounds);
-            });
+                google.maps.event.addListener(map, 'bounds_changed', function() {
+                    var bounds = map.getBounds();
+                    searchBox.setBounds(bounds);
+                });
+            }
 
-            google.maps.event.addListener(map, 'bounds_changed', function() {
-                var bounds = map.getBounds();
-                searchBox.setBounds(bounds);
-            });
-        }
-
-        function callback(results, status) {
-            if (status == google.maps.places.PlacesServiceStatus.OK) {
-                for (var i = 0; i < results.length; i++) {
+            function callback(results, status) {
+                if (status == google.maps.places.PlacesServiceStatus.OK) {
+                    for (var i = 0; i < results.length; i++) {
 //                    service.getDetails(results[i], function(place, status){
 //                        if (status == google.maps.places.PlacesServiceStatus.OK) {
-                    createMarker(results[i]);
+                        createMarker(results[i]);
 //                            console.log(i);
 //                        }
 //                    });
-                }
+                    }
 
-                map.setZoom(16);
+                    map.setZoom(15);
+                }
             }
-        }
-        // create pointer location on the map
-        function createMarker(place) {
-            var placeLoc = place.geometry.location;
-            var marker = new google.maps.Marker({
-                map: map,
-                position: place.geometry.location
-            });
-            var request = { reference: place.reference };
-            service.getDetails(request, function(details, status) {
-                addBusinessToDB(details);
-                google.maps.event.addListener(marker, 'click', function() {
-                    infowindow.setContent(details.name);
-                    infowindow.open(map, this);
+            // create pointer location on the map
+            function createMarker(place) {
+                var placeLoc = place.geometry.location;
+                var marker = new google.maps.Marker({
+                    map: map,
+                    position: place.geometry.location
                 });
-            });
+                var request = { reference: place.reference };
+                service.getDetails(request, function(details, status) {
+                    addBusinessToDB(details);
+                    google.maps.event.addListener(marker, 'click', function() {
+                        infowindow.setContent(details.name);
+                        infowindow.open(map, this);
+                    });
+                });
 
 //            google.maps.event.addListener(marker, 'click', function() {
 //                service.getDetails(place, function(p, status){
@@ -124,13 +131,16 @@
 //                });
 //
 //            });
-        }
+            }
 
-        if (Meteor.isClient) {
 
+
+
+
+            google.maps.event.addDomListener(window, 'load', initialize);
 
             Template.Businesses.getBusinesses = function(){
-                return Businesses.find({}, {sort: {name: 1}});
+                return businessesList;
             };
 
 
@@ -141,12 +151,26 @@
             };
 
             function addBusinessToDB(details){
+                var ifExist;
+                if(details === null){
+                    return;
+                }
                 var myBusiness = new Business();
                 myBusiness.name = details.name;
                 myBusiness.website = details.website;
                 myBusiness.formatted_phone_number = details.formatted_phone_number;
                 myBusiness.formatted_address = details.formatted_address;
-                Businesses.insert(myBusiness);
+                ifExist = Businesses.findOne({
+                    name: myBusiness.name,
+                    formatted_phone_number: myBusiness.formatted_phone_number
+                });
+                if(ifExist !== undefined){
+                    Businesses.update(ifExist._id, myBusiness);
+                }
+                else{
+                    Businesses.insert(myBusiness);
+                }
+                businessesList.push(myBusiness);
             }
 
         }
@@ -159,22 +183,110 @@
 
 
 
-        google.maps.event.addDomListener(window, 'load', initialize);
-
     </script>
-    <style>
-        #target {
-            width: 345px;
-        }
-        #map-canvas {
-            width: 60%;
-        }
-    </style>
+
 </head>
 
 <body>
 <div id="panel">
-    <input id="businessType" type="text" placeholder="business type">
+    <select id="types">
+                <option>accounting</option>
+                <option>airport</option>
+                <option>amusement_park</option>
+                <option>aquarium</option>
+                <option>art_gallery</option>
+                <option>atm</option>
+                <option>bakery</option>
+                <option>bank</option>
+                <option>bar</option>
+                <option>beauty_salon</option>
+                <option>bicycle_store</option>
+                <option>book_store</option>
+                <option>bowling_alley</option>
+                <option>bus_station</option>
+                <option>cafe</option>
+                <option>campground</option>
+                <option>car_dealer</option>
+                <option>car_rental</option>
+                <option>car_repair</option>
+                <option>car_wash</option>
+                <option>casino</option>
+                <option>cemetery</option>
+                <option>church</option>
+                <option>city_hall</option>
+                <option>clothing_store</option>
+                <option>convenience_store</option>
+                <option>courthouse</option>
+                <option>dentist</option>
+                <option>department_store</option>
+                <option>doctor</option>
+                <option>electrician</option>
+                <option>electronics_store</option>
+                <option>embassy</option>
+                <option>establishment</option>
+                <option>finance</option>
+                <option>fire_station</option>
+                <option>florist</option>
+                <option>food</option>
+                <option>funeral_home</option>
+                <option>furniture_store</option>
+                <option>gas_station</option>
+                <option>general_contractor</option>
+                <option>grocery_or_supermarket</option>
+                <option>gym</option>
+                <option>hair_care</option>
+                <option>hardware_store</option>
+                <option>health</option>
+                <option>hindu_temple</option>
+                <option>home_goods_store</option>
+                <option>hospital</option>
+                <option>insurance_agency</option>
+                <option>jewelry_store</option>
+                <option>laundry</option>
+                <option>lawyer</option>
+                <option>library</option>
+                <option>liquor_store</option>
+                <option>local_government_office</option>
+                <option>locksmith</option>
+                <option>lodging</option>
+                <option>meal_delivery</option>
+                <option>meal_takeaway</option>
+                <option>mosque</option>
+                <option>movie_rental</option>
+                <option>movie_theater</option>
+                <option>moving_company</option>
+                <option>museum</option>
+                <option>night_club</option>
+                <option>painter</option>
+                <option>park</option>
+                <option>parking</option>
+                <option>pet_store</option>
+                <option>pharmacy</option>
+                <option>physiotherapist</option>
+                <option>place_of_worship</option>
+                <option>plumber</option>
+                <option>police</option>
+                <option>post_office</option>
+                <option>real_estate_agency</option>
+                <option>restaurant</option>
+                <option>roofing_contractor</option>
+                <option>rv_park</option>
+                <option>school</option>
+                <option>shoe_store</option>
+                <option>shopping_mall</option>
+                <option>spa</option>
+                <option>stadium</option>
+                <option>storage</option>
+                <option>store</option>
+                <option>subway_station</option>
+                <option>synagogue</option>
+                <option>taxi_stand</option>
+                <option>train_station</option>
+                <option>travel_agency</option>
+                <option>university</option>
+                <option>veterinary_care</option>
+                <option>zoo</option>
+    </select>
     <input id="target" type="text" placeholder="where?">
 </div>
 <div id="map-canvas"></div>
